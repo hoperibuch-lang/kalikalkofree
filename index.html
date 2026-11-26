@@ -216,6 +216,7 @@ const parse=k=>{const[y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d)};
 const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
 const today=()=>{const t=new Date();t.setHours(0,0,0,0);return t};
 const num=v=>{const x=parseFloat(String(v??'').replace(',','.'));return isFinite(x)&&x>0?x:0};
+const fN=v=>String(v).replace('.',',');
 const fL=v=>(+v.toFixed(v<10?2:1)).toLocaleString('ru-RU');
 const money=v=>Math.round(v).toLocaleString('ru-RU')+' '+state.settings.cur;
 const pl=(n,a,b,c)=>{n=Math.abs(n)%100;const d=n%10;return n>10&&n<20?c:d>1&&d<5?b:d===1?a:c};
@@ -253,7 +254,7 @@ function normState(s){
   return out;
 }
 function normDay(r){r=r||{};return{
-  a:(Array.isArray(r.a)?r.a:[]).filter(e=>e&&CATS[e.c]).map(e=>({c:e.c,d:String(e.d),x:String(e.x||'o'),v:num(e.v),n:Math.max(0,Math.round(num(e.n))),p:num(e.p)})).filter(e=>e.v&&e.n),
+  a:(Array.isArray(r.a)?r.a:[]).filter(e=>e&&CATS[e.c]).map(e=>({c:e.c,d:String(e.d),x:String(e.x||'o'),v:num(e.v),n:Math.max(0,Math.round(num(e.n)*2)/2),p:num(e.p)})).filter(e=>e.v&&e.n),
   h:(Array.isArray(r.h)?r.h:[]).filter(e=>e&&typeof e==='object').map(e=>({pl:PLACES[e.pl]?e.pl:'home',st:STR[e.st]?e.st:'medium',min:num(e.min),p:num(e.p),mix:String(e.mix||'').slice(0,80)}))
 }}
 const getDay=k=>state.days[k]||{a:[],h:[]};
@@ -380,10 +381,10 @@ function vDay(){
   h+=`<div class="dnav"><button class="arr" data-act="dd" data-d="-1" aria-label="Предыдущий день">‹</button><h2>${dLong(dayKey)}</h2><button class="arr" data-act="dd" data-d="1" aria-label="Следующий день" ${dayKey>=tk?'disabled style="opacity:.3"':''}>›</button></div>`;
   h+=`<div class="seg"><button class="alc ${dayMode==='alc'?'on':''}" data-act="dmode" data-v="alc">Алкоголь${r.a.length?' · '+r.a.length:''}</button><button class="hk ${dayMode==='hk'?'on':''}" data-act="dmode" data-v="hk">Кальян${r.h.length?' · '+r.h.length:''}</button></div>`;
   if(dayMode==='alc'){
-    h+=r.a.length?`<div class="list">${r.a.map((e,i)=>{const d=drink(e.d);return `<div class="item">${glass(d.g,d.col)}<div class="tx"><b>${esc(d.name)}</b><small>${esc(contName(e.c,e.x))} · ${e.n} × ${e.v} мл = ${fL(e.v*e.n/1000)} л${e.p?' · '+money(e.p*e.n):''}</small></div><button class="del" data-act="adel" data-i="${i}" aria-label="Удалить">×</button></div>`}).join('')}</div>`:`<div class="empty">В этот день алкоголь не отмечен</div>`;
+    h+=r.a.length?`<div class="list">${r.a.map((e,i)=>{const d=drink(e.d);return `<div class="item">${glass(d.g,d.col)}<div class="tx"><b>${esc(d.name)}</b><small>${esc(contName(e.c,e.x))} · ${fN(e.n)} × ${e.v} мл = ${fL(e.v*e.n/1000)} л${e.p?' · '+money(e.p*e.n):''}</small></div><button class="del" data-act="adel" data-i="${i}" aria-label="Удалить">×</button></div>`}).join('')}</div>`:`<div class="empty">В этот день алкоголь не отмечен</div>`;
     h+=tabs('dcat',CAT_IDS.map(c=>[c,CATS[c].n]),dayCat);
     const list=drinks().filter(d=>d.cat===dayCat&&!d.hidden);
-    h+=`<div class="drinks">${list.map(d=>{const n=r.a.filter(e=>e.d===d.id).reduce((s,e)=>s+e.n,0);return `<button class="dr" data-act="drink" data-id="${esc(d.id)}">${n?`<span class="cnt">${n}</span>`:''}${glass(d.g,d.col)}<b>${esc(d.name)}</b><small>${d.range?'Крепость '+esc(d.range):''}</small></button>`}).join('')}</div>
+    h+=`<div class="drinks">${list.map(d=>{const n=r.a.filter(e=>e.d===d.id).reduce((s,e)=>s+e.n,0);return `<button class="dr" data-act="drink" data-id="${esc(d.id)}">${n?`<span class="cnt">${fN(n)}</span>`:''}${glass(d.g,d.col)}<b>${esc(d.name)}</b><small>${d.range?'Крепость '+esc(d.range):''}</small></button>`}).join('')}</div>
     <button class="btn" data-act="addcustom">Добавить свой алкоголь</button>`;
   }else{
     h+=r.h.length?`<div class="list">${r.h.map((e,i)=>`<div class="item">${hookahSvg()}<div class="tx"><b>${PLACES[e.pl]} · ${STR[e.st].toLowerCase()}</b><small>${e.min?e.min+' мин':''}${e.p?(e.min?' · ':'')+money(e.p):''}${e.mix?(e.min||e.p?' · ':'')+esc(e.mix):''}</small></div><button class="del" data-act="hdel" data-i="${i}" aria-label="Удалить">×</button></div>`).join('')}</div>`:`<div class="empty">В этот день кальян не отмечен</div>`;
@@ -502,8 +503,8 @@ function sheetDrink(id){
   const o=r.a.find(x=>x.d===id&&x.x==='o');
   sh={type:'drink',id,rows,other:{v:o?+(o.v*o.n/1000).toFixed(3):'',p:o?o.p*o.n:''}};
   openSheet(`<h3>${esc(d.name)}</h3><p class="sub">${dLong(dayKey)}${d.range?' · крепость '+esc(d.range):''}</p>
-  <div class="conts">${CONT[d.cat].map(c=>`<div class="ct">${glass(c[3],d.col)}<b>${c[1]}</b><small>${c[2]} мл</small>
-    <div class="step"><button data-act="st" data-x="${c[0]}" data-d="-1" aria-label="Меньше">−</button><span id="n-${c[0]}">${rows[c[0]].n}</span><button data-act="st" data-x="${c[0]}" data-d="1" aria-label="Больше">+</button></div>
+  <div class="conts">${CONT[d.cat].map(c=>`<div class="ct">${glass(c[3],d.col)}<b>${c[1]}</b><small>${c[2]} мл${c[3]==='bottle'?' · можно ½':''}</small>
+    <div class="step"><button data-act="st" data-x="${c[0]}" data-d="-1" data-s="${c[3]==='bottle'?.5:1}" aria-label="Меньше">−</button><span id="n-${c[0]}">${fN(rows[c[0]].n)}</span><button data-act="st" data-x="${c[0]}" data-d="1" data-s="${c[3]==='bottle'?.5:1}" aria-label="Больше">+</button></div>
     <input class="inp" inputmode="decimal" placeholder="цена за штуку" data-px="${c[0]}" value="${esc(rows[c[0]].p||'')}"></div>`).join('')}
     <div class="ct">${glass('pint','transparent')}<b>Другое</b><small>свой объём</small>
     <input class="inp" inputmode="decimal" placeholder="объём, л" id="ov" value="${esc(sh.other.v)}"><input class="inp" inputmode="decimal" placeholder="цена" id="op" value="${esc(sh.other.p||'')}"></div></div>
@@ -551,7 +552,7 @@ document.addEventListener('click',async e=>{
     case 'scat':sCat=v;break;
     case 'cur':state.settings.cur=v;save('settings');break;
     case 'close':closeSheet();return;
-    case 'st':{const x=b.dataset.x,row=sh.rows[x];row.n=Math.max(0,Math.min(99,row.n+ +b.dataset.d));hap();$('#n-'+x).textContent=row.n;return}
+    case 'st':{const x=b.dataset.x,row=sh.rows[x];row.n=Math.max(0,Math.min(99,Math.round((row.n+ +b.dataset.d*(+b.dataset.s||1))*2)/2));hap();$('#n-'+x).textContent=fN(row.n);return}
     case 'dsave':{
       const d=drink(sh.id),r=clone(getDay(dayKey));
       r.a=r.a.filter(x=>x.d!==sh.id);
